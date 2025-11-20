@@ -293,8 +293,6 @@ export default function SettingsPage() {
 
   // General Settings State
   const [generalSettings, setGeneralSettings] = useState({
-    theme: "light",
-    language: "english",
     dateFormat: "dd/mm/yyyy",
     currency: "INR",
     autoSave: true,
@@ -303,10 +301,31 @@ export default function SettingsPage() {
     itemsPerPage: 25,
   });
 
+  // Privacy Settings State
+  const [privacySettings, setPrivacySettings] = useState({
+    shareAnalyticsData: true,
+    marketingCommunications: false,
+  });
+
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   const [activeSection, setActiveSection] = useState("profile");
-  const [showToast, setShowToast] = useState(false);
+  const [showToastNotification, setShowToastNotification] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+
+  // Toast notification function
+  const showToast = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToastNotification(true);
+
+    setTimeout(() => {
+      setShowToastNotification(false);
+    }, 3000);
+  };
 
   // Event Handlers
   const handleProfileUpdate = () => {
@@ -497,21 +516,110 @@ export default function SettingsPage() {
     setGeneralSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handlePrivacySettingChange = (key, value) => {
+    setPrivacySettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleExportLeads = () => {
+    // Simulate export process
+    showToast("Preparing leads export...", "info");
+    setTimeout(() => {
+      // Create a dummy CSV content
+      const csvContent =
+        "Name,Email,Phone,Status\nAlex Johnson,alex@example.com,+91 98765 43210,active\nPriya Sharma,priya@example.com,+91 98765 43211,active";
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads_export_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast("Leads exported successfully", "success");
+    }, 2000);
+  };
+
+  const handleExportReports = () => {
+    // Simulate export process
+    showToast("Preparing reports export...", "info");
+    setTimeout(() => {
+      // Create a dummy PDF content (in real app, this would generate a PDF)
+      const pdfContent = "Sales Report - " + new Date().toLocaleDateString();
+      const blob = new Blob([pdfContent], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reports_export_${
+        new Date().toISOString().split("T")[0]
+      }.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast("Reports exported successfully", "success");
+    }, 2000);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteAccountConfirm !== "DELETE") {
+      showToast("Please type DELETE to confirm", "error");
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    showToast("Deleting account...", "info");
+
+    try {
+      // Simulate API call to delete account
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Clear local storage and session data
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Reset all states to initial empty values
+      setProfileData({
+        name: "",
+        email: "",
+        phone: "",
+        role: "",
+        avatar: "",
+        bio: "",
+        timezone: "",
+        language: "",
+      });
+
+      setTeamMembers([]);
+      setTerritories([]);
+      setIntegrations([]);
+
+      // Show success message
+      showToast(
+        "Account deleted successfully. Redirecting to login...",
+        "success"
+      );
+
+      // Close modal and reset form
+      setShowDeleteAccountModal(false);
+      setDeleteAccountConfirm("");
+
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+    } catch (error) {
+      showToast("Failed to delete account. Please try again.", "error");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   const handleSaveAllSettings = () => {
     // Simulate API call
     setTimeout(() => {
       showToast("All settings saved successfully", "success");
     }, 1000);
-  };
-
-  const showToast = (message, type = "success") => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
   };
 
   return (
@@ -1018,7 +1126,7 @@ export default function SettingsPage() {
 
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">
-                  Set your working hours for each day of the week
+                  Set your working hours for each day of week
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2047,42 +2155,6 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Theme
-                    </label>
-                    <select
-                      value={generalSettings.theme}
-                      onChange={(e) =>
-                        handleGeneralSettingChange("theme", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue"
-                    >
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                      <option value="auto">Auto (System)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Language
-                    </label>
-                    <select
-                      value={generalSettings.language}
-                      onChange={(e) =>
-                        handleGeneralSettingChange("language", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue"
-                    >
-                      <option value="english">English</option>
-                      <option value="hindi">Hindi</option>
-                      <option value="marathi">Marathi</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
                       Date Format
                     </label>
                     <select
@@ -2097,7 +2169,9 @@ export default function SettingsPage() {
                       <option value="yyyy-mm-dd">YYYY-MM-DD</option>
                     </select>
                   </div>
+                </div>
 
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Currency
@@ -2222,12 +2296,18 @@ export default function SettingsPage() {
                   </h3>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                    <button
+                      onClick={handleExportLeads}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                    >
                       <Download className="h-4 w-4" />
                       Export Leads
                     </button>
 
-                    <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                    <button
+                      onClick={handleExportReports}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                    >
                       <Download className="h-4 w-4" />
                       Export Reports
                     </button>
@@ -2243,7 +2323,13 @@ export default function SettingsPage() {
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        defaultChecked={true}
+                        checked={privacySettings.shareAnalyticsData}
+                        onChange={() =>
+                          handlePrivacySettingChange(
+                            "shareAnalyticsData",
+                            !privacySettings.shareAnalyticsData
+                          )
+                        }
                         className="w-4 h-4 text-brand-blue focus:ring-brand-blue/50 rounded"
                       />
                       <div>
@@ -2259,7 +2345,13 @@ export default function SettingsPage() {
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        defaultChecked={false}
+                        checked={privacySettings.marketingCommunications}
+                        onChange={() =>
+                          handlePrivacySettingChange(
+                            "marketingCommunications",
+                            !privacySettings.marketingCommunications
+                          )
+                        }
                         className="w-4 h-4 text-brand-blue focus:ring-brand-blue/50 rounded"
                       />
                       <div>
@@ -2275,7 +2367,10 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-4 border-t border-slate-200">
-                  <button className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setShowDeleteAccountModal(true)}
+                    className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                  >
                     <Trash2 className="h-4 w-4" />
                     Delete Account
                   </button>
@@ -2286,8 +2381,87 @@ export default function SettingsPage() {
         )}
       </main>
 
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-brand-navy">
+                  Delete Account
+                </h3>
+                <p className="text-sm text-slate-600">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <p className="text-sm text-slate-700">
+                Deleting your account will permanently remove:
+              </p>
+              <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                <li>All your personal data</li>
+                <li>Team memberships and permissions</li>
+                <li>Territory assignments</li>
+                <li>Activity history and logs</li>
+                <li>Integration settings</li>
+              </ul>
+              <p className="text-sm text-slate-700 font-medium">
+                Type "DELETE" below to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteAccountConfirm}
+                onChange={(e) => setDeleteAccountConfirm(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleteAccountConfirm !== "DELETE" || isDeletingAccount
+                }
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  deleteAccountConfirm === "DELETE" && !isDeletingAccount
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Account
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteAccountModal(false);
+                  setDeleteAccountConfirm("");
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
-      {showToast && (
+      {showToastNotification && (
         <div
           className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${
             toastType === "success"
