@@ -73,19 +73,16 @@ export default function SignInPage({ onSignIn }) {
       value: "Sales Executive",
       label: "Sales Executive",
       icon: Briefcase,
-      description: "Field sales operations and lead management",
     },
     {
       value: "Relationship Manager",
       label: "Relationship Manager",
       icon: Building2,
-      description: "Client relationships and portfolio management",
     },
     {
       value: "Team Lead",
       label: "Team Lead",
       icon: UserPlus,
-      description: "Supervise teams, approve payouts, view consolidated KPIs",
     },
   ];
 
@@ -151,15 +148,15 @@ export default function SignInPage({ onSignIn }) {
                       key={role.value}
                       type="button"
                       onClick={() => handleChange("role", role.value)}
-                        className={`p-4 rounded-2xl border-2 transition-all text-left h-full ${
+                      className={`p-4 rounded-2xl border-2 transition-all text-left h-full ${
                         isSelected
                           ? "border-brand-blue bg-brand-blue/10"
                           : "border-slate-200 hover:border-brand-blue/50"
                       }`}
                     >
-                        <div className="flex flex-col gap-3">
-                          <div
-                            className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+                      <div className="flex flex-col gap-3">
+                        <div
+                          className={`h-12 w-12 rounded-xl flex items-center justify-center ${
                             isSelected
                               ? "bg-brand-blue text-white"
                               : "bg-slate-100 text-slate-600"
@@ -169,13 +166,13 @@ export default function SignInPage({ onSignIn }) {
                         </div>
                         <div>
                           <p
-                              className={`font-semibold text-base leading-tight ${
+                            className={`font-semibold text-base leading-tight ${
                               isSelected ? "text-brand-blue" : "text-slate-700"
                             }`}
                           >
                             {role.label}
                           </p>
-                            <p className="text-xs text-slate-500 mt-1 leading-snug">
+                          <p className="text-xs text-slate-500 mt-1 leading-snug">
                             {role.description}
                           </p>
                         </div>

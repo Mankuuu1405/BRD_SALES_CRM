@@ -12,15 +12,25 @@ import ReportsPage from "./pages/ReportsPage";
 import IncentivesPage from "./pages/IncentivesPage";
 import ResourcesPage from "./pages/ResourcesPage";
 import SettingsPage from "./pages/SettingsPage";
+import MarketingPage from "./pages/MarketingPage";
+
+// Additional page imports
+import CollectionAndRecoveryPage from "./pages/CollectionAndRecoveryPage";
+import SupportAndTicketingPage from "./pages/SupportAndTicketingPage";
+import RemindersAlertsPage from "./pages/RemindersAlertsPage";
+import AdministrationPage from "./pages/AdministrationPage.jsx";
 
 function AppRoutes() {
   const { login, signIn } = useAuth();
 
   return (
     <Routes>
+      {/* Authentication Routes */}
       <Route path="/login" element={<LoginPage onLogin={login} />} />
       <Route path="/signin" element={<SignInPage onSignIn={signIn} />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Main Application Routes */}
       <Route
         path="/"
         element={
@@ -31,6 +41,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Feature Routes */}
       <Route
         path="/pipeline"
         element={
@@ -41,6 +53,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/reports"
         element={
@@ -51,6 +64,18 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/marketing"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <MarketingPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/incentives"
         element={
@@ -61,6 +86,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/resources"
         element={
@@ -71,6 +97,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/settings"
         element={
@@ -81,6 +108,53 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Additional Feature Routes */}
+      <Route
+        path="/reminders-alerts"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <RemindersAlertsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/support-ticketing"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <SupportAndTicketingPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/collection-recovery"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <CollectionAndRecoveryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/administration"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AdministrationPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Catch-all route for unknown paths */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

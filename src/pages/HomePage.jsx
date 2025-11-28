@@ -32,6 +32,7 @@ import {
   Star,
   Target,
   Zap,
+  HelpCircle,
 } from "lucide-react";
 import {
   pipelineColumns,
@@ -46,7 +47,7 @@ const statCards = [
     change: "+14% vs last week",
     detail:
       "Number of in-progress leads, including fresh captures and reassigned contacts across teams.",
-    gradient: "from-brand-blue/90 via-brand-sky/80 to-brand-emerald/80",
+    gradient: "from-brand-blue/90 via-brand-indigo/80 to-brand-purple/80",
   },
   {
     label: "Lead → Application",
@@ -71,6 +72,29 @@ const statCards = [
     detail:
       "Total incentives earned for current payout cycle, including bonuses and accelerators.",
     gradient: "from-brand-blue/90 via-brand-emerald/80 to-brand-sky/70",
+  },
+  {
+    label: "Active Leads",
+    value: "128",
+    change: "+14% vs last week",
+    detail:
+      "Number of in-progress leads, including fresh captures and reassigned contacts across teams.",
+    gradient: "from-brand-blue/90 via-brand-indigo/80 to-brand-purple/80",
+  },
+
+  {
+    label: "Collection Recovery",
+    value: "72%",
+    change: "↑ 3% improvement",
+    detail: "Percentage of successfully recovered collections this month",
+    gradient: "from-brand-emerald/90 via-brand-teal/80 to-brand-cyan/80",
+  },
+  {
+    label: "New Leads Today", // UPDATED
+    value: "15",
+    change: "On track for daily goal",
+    detail: "Number of new leads captured today",
+    gradient: "from-brand-emerald/90 via-brand-sky/70 to-brand-blue/90", // Same as "Active Tickets"
   },
 ];
 
@@ -111,6 +135,55 @@ const initialReminders = [
     location: "Delhi",
     notes: "Payout approval pending from relationship manager",
     completed: false,
+  },
+];
+
+// Initial activities data
+const initialActivities = [
+  {
+    id: 1,
+    type: "lead_created",
+    message: "New lead created: Kavya Steel",
+    timestamp: "2 minutes ago",
+    user: "You",
+    icon: <Plus className="h-4 w-4" />,
+    color: "text-brand-emerald bg-brand-emerald/10",
+  },
+  {
+    id: 2,
+    type: "call_completed",
+    message: "Call completed with Karan Patel",
+    timestamp: "15 minutes ago",
+    user: "Alex Johnson",
+    icon: <PhoneCall className="h-4 w-4" />,
+    color: "text-brand-blue bg-brand-blue/10",
+  },
+  {
+    id: 3,
+    type: "ticket_resolved",
+    message: "Support ticket #1234 resolved",
+    timestamp: "1 hour ago",
+    user: "Priya Sharma",
+    icon: <CheckCircle2 className="h-4 w-4" />,
+    color: "text-brand-purple bg-brand-purple/10",
+  },
+  {
+    id: 4,
+    type: "document_uploaded",
+    message: "PAN document uploaded for Sarthak Foods",
+    timestamp: "2 hours ago",
+    user: "Rahul Verma",
+    icon: <Upload className="h-4 w-4" />,
+    color: "text-brand-amber bg-brand-amber/10",
+  },
+  {
+    id: 5,
+    type: "lead_converted",
+    message: "Lead converted: Vihaan Infrastructure",
+    timestamp: "3 hours ago",
+    user: "Sneha Reddy",
+    icon: <TrendingUp className="h-4 w-4" />,
+    color: "text-brand-emerald bg-brand-emerald/10",
   },
 ];
 
@@ -323,6 +396,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
   const [showQuickCallModal, setShowQuickCallModal] = useState(false);
   const [showQuickEmailModal, setShowQuickEmailModal] = useState(false);
   const [showQuickNoteModal, setShowQuickNoteModal] = useState(false);
+  const [showQuickTicketModal, setShowQuickTicketModal] = useState(false);
   const [quickCallData, setQuickCallData] = useState({
     leadName: "",
     phoneNumber: "",
@@ -338,7 +412,19 @@ export default function HomePage({ activeFilter, filterMeta }) {
     note: "",
     assignTo: "",
   });
+  const [quickTicketData, setQuickTicketData] = useState({
+    leadName: "",
+    issue: "",
+    priority: "medium",
+    description: "",
+    assignTo: "",
+  });
   const [quickActionStatus, setQuickActionStatus] = useState(null);
+
+  // Activity feed states
+  const [activities, setActivities] = useState(initialActivities);
+  const [showActivityFilter, setShowActivityFilter] = useState(false);
+  const [activityFilter, setActivityFilter] = useState("all");
 
   // Form submission states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -397,6 +483,12 @@ export default function HomePage({ activeFilter, filterMeta }) {
     return filteredLeads;
   }, [filteredColumns, spotlightFilter, sortBy]);
 
+  // Filter activities based on selected filter
+  const filteredActivities = useMemo(() => {
+    if (activityFilter === "all") return activities;
+    return activities.filter((activity) => activity.type === activityFilter);
+  }, [activities, activityFilter]);
+
   const activeFilterLabel = activeFilter
     ? quickFilterLabels[activeFilter]
     : "All leads";
@@ -406,10 +498,10 @@ export default function HomePage({ activeFilter, filterMeta }) {
     const notification = document.createElement("div");
     notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 ${
       type === "success"
-        ? "bg-green-500 text-white"
+        ? "bg-brand-emerald text-white"
         : type === "error"
         ? "bg-red-500 text-white"
-        : "bg-blue-500 text-white"
+        : "bg-brand-blue text-white"
     }`;
     notification.innerHTML = `
       ${
@@ -497,6 +589,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
       setFormStatus("Lead captured and assigned");
       showToast("Lead captured successfully!", "success");
 
+      // Add to activities
+      const newActivity = {
+        id: Date.now(),
+        type: "lead_created",
+        message: `New lead created: ${leadData.name}`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <Plus className="h-4 w-4" />,
+        color: "text-brand-emerald bg-brand-emerald/10",
+      };
+      setActivities((prev) => [newActivity, ...prev]);
+
       // Add to reminders
       const newReminder = {
         id: Date.now(),
@@ -565,6 +669,19 @@ export default function HomePage({ activeFilter, filterMeta }) {
     setTimeout(() => {
       setNotificationStatus("sent");
       showToast("Notification sent to team!", "success");
+
+      // Add to activities
+      const newActivity = {
+        id: Date.now(),
+        type: "notification_sent",
+        message: `Team notification sent to ${selectedTeamMembers.length} members`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <Send className="h-4 w-4" />,
+        color: "text-brand-blue bg-brand-blue/10",
+      };
+      setActivities((prev) => [newActivity, ...prev]);
+
       setTimeout(() => {
         setShowNotifyModal(false);
         setNotificationMessage("");
@@ -589,6 +706,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
 
     const reminder = reminders.find((r) => r.id === reminderId);
     showToast(`${reminder.title} marked as complete`, "success");
+
+    // Add to activities
+    const newActivity = {
+      id: Date.now(),
+      type: "reminder_completed",
+      message: `Reminder completed: ${reminder.title}`,
+      timestamp: "Just now",
+      user: "You",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      color: "text-brand-emerald bg-brand-emerald/10",
+    };
+    setActivities((prev) => [newActivity, ...prev]);
   };
 
   const handleDeleteReminder = (reminderId) => {
@@ -623,6 +752,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
     });
     setShowAddReminderModal(false);
     showToast("Reminder added successfully", "success");
+
+    // Add to activities
+    const newActivity = {
+      id: Date.now(),
+      type: "reminder_created",
+      message: `New reminder created: ${reminder.title}`,
+      timestamp: "Just now",
+      user: "You",
+      icon: <Clock className="h-4 w-4" />,
+      color: "text-brand-amber bg-brand-amber/10",
+    };
+    setActivities((prev) => [newActivity, ...prev]);
   };
 
   // Lead Spotlight functions
@@ -640,19 +781,79 @@ export default function HomePage({ activeFilter, filterMeta }) {
       case "call":
         window.open(`tel:${lead.phone}`);
         showToast(`Calling ${lead.name}...`, "info");
+
+        // Add to activities
+        const callActivity = {
+          id: Date.now(),
+          type: "call_initiated",
+          message: `Call initiated with ${lead.name}`,
+          timestamp: "Just now",
+          user: "You",
+          icon: <PhoneCall className="h-4 w-4" />,
+          color: "text-brand-blue bg-brand-blue/10",
+        };
+        setActivities((prev) => [callActivity, ...prev]);
         break;
       case "email":
         window.open(`mailto:${lead.email}`);
         showToast(`Opening email client for ${lead.name}...`, "info");
+
+        // Add to activities
+        const emailActivity = {
+          id: Date.now(),
+          type: "email_sent",
+          message: `Email sent to ${lead.name}`,
+          timestamp: "Just now",
+          user: "You",
+          icon: <Mail className="h-4 w-4" />,
+          color: "text-brand-indigo bg-brand-indigo/10",
+        };
+        setActivities((prev) => [emailActivity, ...prev]);
         break;
       case "assign":
         showToast(`Lead ${lead.name} assigned to you`, "success");
+
+        // Add to activities
+        const assignActivity = {
+          id: Date.now(),
+          type: "lead_assigned",
+          message: `Lead assigned to you: ${lead.name}`,
+          timestamp: "Just now",
+          user: "You",
+          icon: <User className="h-4 w-4" />,
+          color: "text-brand-purple bg-brand-purple/10",
+        };
+        setActivities((prev) => [assignActivity, ...prev]);
         break;
       case "priority":
         showToast(`${lead.name} marked as high priority`, "success");
+
+        // Add to activities
+        const priorityActivity = {
+          id: Date.now(),
+          type: "priority_updated",
+          message: `Marked as high priority: ${lead.name}`,
+          timestamp: "Just now",
+          user: "You",
+          icon: <Star className="h-4 w-4" />,
+          color: "text-brand-amber bg-brand-amber/10",
+        };
+        setActivities((prev) => [priorityActivity, ...prev]);
         break;
       case "archive":
         showToast(`${lead.name} archived`, "info");
+
+        // Add to activities
+        const archiveActivity = {
+          id: Date.now(),
+          type: "lead_archived",
+          message: `Lead archived: ${lead.name}`,
+          timestamp: "Just now",
+          user: "You",
+          icon: <Trash2 className="h-4 w-4" />,
+          color: "text-brand-slate bg-brand-slate/10",
+        };
+        setActivities((prev) => [archiveActivity, ...prev]);
         break;
       default:
         break;
@@ -675,6 +876,9 @@ export default function HomePage({ activeFilter, filterMeta }) {
       case "note":
         setShowQuickNoteModal(true);
         break;
+      case "ticket":
+        setShowQuickTicketModal(true);
+        break;
       default:
         break;
     }
@@ -694,7 +898,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
       window.open(`tel:${quickCallData.phoneNumber}`);
       setQuickActionStatus("completed");
 
-      // Add a reminder for the call
+      // Add a reminder for call
       const newReminder = {
         id: Date.now(),
         title: `Call: ${quickCallData.leadName}`,
@@ -707,6 +911,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
       };
 
       setReminders((prev) => [newReminder, ...prev]);
+
+      // Add to activities
+      const callActivity = {
+        id: Date.now(),
+        type: "call_completed",
+        message: `Quick call completed with ${quickCallData.leadName}`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <PhoneCall className="h-4 w-4" />,
+        color: "text-brand-blue bg-brand-blue/10",
+      };
+      setActivities((prev) => [callActivity, ...prev]);
 
       setTimeout(() => {
         setShowQuickCallModal(false);
@@ -739,7 +955,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
       );
       setQuickActionStatus("sent");
 
-      // Add a reminder for the email
+      // Add a reminder for email
       const newReminder = {
         id: Date.now(),
         title: `Email sent: ${quickEmailData.subject}`,
@@ -751,6 +967,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
       };
 
       setReminders((prev) => [newReminder, ...prev]);
+
+      // Add to activities
+      const emailActivity = {
+        id: Date.now(),
+        type: "email_sent",
+        message: `Quick email sent to ${quickEmailData.to}`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <Mail className="h-4 w-4" />,
+        color: "text-brand-indigo bg-brand-indigo/10",
+      };
+      setActivities((prev) => [emailActivity, ...prev]);
 
       setTimeout(() => {
         setShowQuickEmailModal(false);
@@ -776,7 +1004,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
     setQuickActionStatus("saving");
 
     setTimeout(() => {
-      // Add a reminder for the note
+      // Add a reminder for note
       const newReminder = {
         id: Date.now(),
         title: `Note: ${quickNoteData.leadName}`,
@@ -789,6 +1017,18 @@ export default function HomePage({ activeFilter, filterMeta }) {
 
       setReminders((prev) => [newReminder, ...prev]);
       setQuickActionStatus("saved");
+
+      // Add to activities
+      const noteActivity = {
+        id: Date.now(),
+        type: "note_added",
+        message: `Quick note added for ${quickNoteData.leadName}`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <FileText className="h-4 w-4" />,
+        color: "text-brand-amber bg-brand-amber/10",
+      };
+      setActivities((prev) => [noteActivity, ...prev]);
 
       setTimeout(() => {
         setShowQuickNoteModal(false);
@@ -803,23 +1043,70 @@ export default function HomePage({ activeFilter, filterMeta }) {
     }, 1500);
   };
 
+  const handleQuickTicketSubmit = (e) => {
+    e.preventDefault();
+    if (!quickTicketData.leadName.trim() || !quickTicketData.issue.trim()) {
+      setQuickActionStatus("Please fill in all required fields");
+      setTimeout(() => setQuickActionStatus(null), 3000);
+      return;
+    }
+
+    setQuickActionStatus("creating");
+
+    setTimeout(() => {
+      // Generate a ticket ID
+      const ticketId =
+        "TKT-" +
+        Math.floor(Math.random() * 10000)
+          .toString()
+          .padStart(4, "0");
+
+      // Add to activities
+      const ticketActivity = {
+        id: Date.now(),
+        type: "ticket_created",
+        message: `Support ticket created: ${ticketId} for ${quickTicketData.leadName}`,
+        timestamp: "Just now",
+        user: "You",
+        icon: <HelpCircle className="h-4 w-4" />,
+        color: "text-brand-purple bg-brand-purple/10",
+      };
+      setActivities((prev) => [ticketActivity, ...prev]);
+
+      setQuickActionStatus("created");
+
+      setTimeout(() => {
+        setShowQuickTicketModal(false);
+        setQuickTicketData({
+          leadName: "",
+          issue: "",
+          priority: "medium",
+          description: "",
+          assignTo: "",
+        });
+        setQuickActionStatus(null);
+        showToast(`Ticket ${ticketId} created successfully`, "success");
+      }, 1500);
+    }, 1500);
+  };
+
   const getRiskColor = (level) => {
     switch (level) {
       case "Low":
-        return "text-green-600 bg-green-100";
+        return "text-brand-emerald bg-brand-emerald/10";
       case "Medium":
-        return "text-amber-600 bg-amber-100";
+        return "text-brand-amber bg-brand-amber/10";
       case "High":
-        return "text-red-600 bg-red-100";
+        return "text-red-500 bg-red-100";
       default:
-        return "text-slate-600 bg-slate-100";
+        return "text-brand-slate bg-brand-slate/10";
     }
   };
 
   const getProbabilityColor = (probability) => {
-    if (probability >= 75) return "text-green-600";
-    if (probability >= 50) return "text-amber-600";
-    return "text-red-600";
+    if (probability >= 75) return "text-brand-emerald";
+    if (probability >= 50) return "text-brand-amber";
+    return "text-red-500";
   };
 
   const activeReminders = reminders.filter((r) => !r.completed);
@@ -839,6 +1126,12 @@ export default function HomePage({ activeFilter, filterMeta }) {
         !event.target.closest(".actions-button")
       ) {
         setShowActionsMenu(null);
+      }
+      if (
+        !event.target.closest(".activity-filter-menu") &&
+        !event.target.closest(".activity-filter-button")
+      ) {
+        setShowActivityFilter(false);
       }
     };
 
@@ -880,6 +1173,13 @@ export default function HomePage({ activeFilter, filterMeta }) {
             >
               <FileText className="h-4 w-4 text-brand-blue" />
               <span className="text-sm">Quick Note</span>
+            </button>
+            <button
+              onClick={() => handleQuickAction("ticket")}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100 transition-colors"
+            >
+              <HelpCircle className="h-4 w-4 text-brand-blue" />
+              <span className="text-sm">Create Ticket</span>
             </button>
           </div>
         )}
@@ -1169,7 +1469,142 @@ export default function HomePage({ activeFilter, filterMeta }) {
         </div>
       )}
 
-      {/* Rest of your existing code remains the same... */}
+      {/* Quick Ticket Modal */}
+      {showQuickTicketModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Create Support Ticket</h3>
+              <button
+                onClick={() => setShowQuickTicketModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleQuickTicketSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Lead Name
+                </label>
+                <input
+                  type="text"
+                  value={quickTicketData.leadName}
+                  onChange={(e) =>
+                    setQuickTicketData((prev) => ({
+                      ...prev,
+                      leadName: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                  placeholder="Enter lead name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Issue Type
+                </label>
+                <input
+                  type="text"
+                  value={quickTicketData.issue}
+                  onChange={(e) =>
+                    setQuickTicketData((prev) => ({
+                      ...prev,
+                      issue: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                  placeholder="e.g., Document verification, Payment issue"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={quickTicketData.priority}
+                  onChange={(e) =>
+                    setQuickTicketData((prev) => ({
+                      ...prev,
+                      priority: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={4}
+                  value={quickTicketData.description}
+                  onChange={(e) =>
+                    setQuickTicketData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                  placeholder="Describe issue in detail"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Assign To
+                </label>
+                <select
+                  value={quickTicketData.assignTo}
+                  onChange={(e) =>
+                    setQuickTicketData((prev) => ({
+                      ...prev,
+                      assignTo: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50"
+                >
+                  <option value="">Select team member</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.id} value={member.name}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {quickActionStatus && (
+                <div className="text-sm text-center p-2 rounded-lg bg-slate-100">
+                  {quickActionStatus === "creating" && "Creating ticket..."}
+                  {quickActionStatus === "created" && "Ticket created!"}
+                  {quickActionStatus === "error" && quickActionStatus}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-brand-blue text-white rounded-lg py-2 font-medium hover:bg-brand-blue/90"
+                >
+                  <HelpCircle className="h-4 w-4 inline mr-2" />
+                  Create Ticket
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickTicketModal(false)}
+                  className="flex-1 bg-slate-200 text-slate-700 rounded-lg py-2 font-medium hover:bg-slate-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stat Cards Section */}
       <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const isActive = activeStat.label === card.label;
@@ -1258,7 +1693,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
         </div>
       )}
 
-      {/* Continue with rest of your existing code... */}
+      {/* Main Content Section */}
       <section className="grid xl:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl shadow-sm col-span-2 border border-slate-100">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 px-6 py-4 gap-3">
@@ -1486,8 +1921,8 @@ export default function HomePage({ activeFilter, filterMeta }) {
                   formStatus.includes("error") || formStatus.includes("fix")
                     ? "bg-red-100 text-red-600"
                     : formStatus.includes("Processing")
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-green-100 text-green-600"
+                    ? "bg-brand-blue/10 text-brand-blue"
+                    : "bg-brand-emerald/10 text-brand-emerald"
                 }`}
               >
                 {formStatus}
@@ -1496,156 +1931,270 @@ export default function HomePage({ activeFilter, filterMeta }) {
           </form>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase text-slate-400">Reminders</p>
-              <h2 className="text-lg font-semibold">Follow ups</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowAddReminderModal(true)}
-                className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Add new reminder"
-              >
-                <Plus className="h-4 w-4 text-brand-blue" />
-              </button>
-              <Clock className="h-5 w-5 text-brand-blue" />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {activeReminders.map((reminder) => (
-              <div
-                key={reminder.id}
-                className={`border border-slate-100 rounded-2xl p-4 flex gap-3 items-start cursor-pointer transition-all hover:shadow-md ${
-                  reminder.completed ? "opacity-50 bg-slate-50" : "bg-white"
-                }`}
-                onClick={() => handleReminderClick(reminder)}
-              >
-                <div
-                  className={`h-10 w-10 rounded-2xl flex items-center justify-center ${
-                    reminder.type === "call"
-                      ? "bg-brand-blue/10 text-brand-blue"
-                      : reminder.type === "task"
-                      ? "bg-amber-100 text-amber-600"
-                      : "bg-purple-100 text-purple-600"
-                  }`}
+        <div className="space-y-6">
+          {/* Reminders Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase text-slate-400">Reminders</p>
+                <h2 className="text-lg font-semibold">Follow ups</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddReminderModal(true)}
+                  className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                  title="Add new reminder"
                 >
-                  {reminder.type === "call" && (
-                    <PhoneCall className="h-5 w-5" />
-                  )}
-                  {reminder.type === "task" && <FileText className="h-5 w-5" />}
-                  {reminder.type === "note" && <Sparkles className="h-5 w-5" />}
-                </div>
-                <div className="flex-1">
-                  <p
-                    className={`font-medium ${
-                      reminder.completed ? "line-through text-slate-400" : ""
+                  <Plus className="h-4 w-4 text-brand-blue" />
+                </button>
+                <Clock className="h-5 w-5 text-brand-blue" />
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              {activeReminders.map((reminder) => (
+                <div
+                  key={reminder.id}
+                  className={`border border-slate-100 rounded-2xl p-4 flex gap-3 items-start cursor-pointer transition-all hover:shadow-md ${
+                    reminder.completed ? "opacity-50 bg-slate-50" : "bg-white"
+                  }`}
+                  onClick={() => handleReminderClick(reminder)}
+                >
+                  <div
+                    className={`h-10 w-10 rounded-2xl flex items-center justify-center ${
+                      reminder.type === "call"
+                        ? "bg-brand-blue/10 text-brand-blue"
+                        : reminder.type === "task"
+                        ? "bg-brand-amber/10 text-brand-amber"
+                        : "bg-brand-purple/10 text-brand-purple"
                     }`}
                   >
-                    {reminder.title}
-                  </p>
-                  <p className="text-xs text-slate-500">{reminder.due}</p>
+                    {reminder.type === "call" && (
+                      <PhoneCall className="h-5 w-5" />
+                    )}
+                    {reminder.type === "task" && (
+                      <FileText className="h-5 w-5" />
+                    )}
+                    {reminder.type === "note" && (
+                      <Sparkles className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={`font-medium ${
+                        reminder.completed ? "line-through text-slate-400" : ""
+                      }`}
+                    >
+                      {reminder.title}
+                    </p>
+                    <p className="text-xs text-slate-500">{reminder.due}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompleteReminder(reminder.id);
+                      }}
+                      className="text-xs text-brand-emerald font-semibold flex items-center gap-1 hover:bg-brand-emerald/10 px-2 py-1 rounded transition-colors"
+                      title="Mark as complete"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Done
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteReminder(reminder.id);
+                      }}
+                      className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                      title="Delete reminder"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCompleteReminder(reminder.id);
-                    }}
-                    className="text-xs text-brand-emerald font-semibold flex items-center gap-1 hover:bg-green-50 px-2 py-1 rounded transition-colors"
-                    title="Mark as complete"
+              ))}
+            </div>
+
+            {completedReminders.length > 0 && (
+              <div className="border-t border-slate-100 pt-4 mt-4">
+                <button
+                  onClick={() =>
+                    setReminderAction(
+                      reminderAction === "completed" ? null : "completed"
+                    )
+                  }
+                  className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                >
+                  {reminderAction === "completed" ? "Hide" : "Show"} completed (
+                  {completedReminders.length})
+                  <span
+                    className={`transition-transform ${
+                      reminderAction === "completed" ? "rotate-90" : ""
+                    }`}
                   >
-                    <CheckCircle2 className="h-4 w-4" /> Done
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteReminder(reminder.id);
-                    }}
-                    className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-                    title="Delete reminder"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                    →
+                  </span>
+                </button>
+
+                {reminderAction === "completed" && (
+                  <div className="mt-3 space-y-3">
+                    {completedReminders.map((reminder) => (
+                      <div
+                        key={reminder.id}
+                        className="border border-slate-100 rounded-2xl p-4 flex gap-3 items-start opacity-60 bg-slate-50"
+                      >
+                        <div
+                          className={`h-10 w-10 rounded-2xl flex items-center justify-center ${
+                            reminder.type === "call"
+                              ? "bg-brand-blue/10 text-brand-blue"
+                              : reminder.type === "task"
+                              ? "bg-brand-amber/10 text-brand-amber"
+                              : "bg-brand-purple/10 text-brand-purple"
+                          }`}
+                        >
+                          {reminder.type === "call" && (
+                            <PhoneCall className="h-5 w-5" />
+                          )}
+                          {reminder.type === "task" && (
+                            <FileText className="h-5 w-5" />
+                          )}
+                          {reminder.type === "note" && (
+                            <Sparkles className="h-5 w-5" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium line-through text-slate-400">
+                            {reminder.title}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {reminder.due}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteReminder(reminder.id)}
+                          className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                          title="Delete reminder"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+
+            <div className="bg-brand-blue/10 rounded-2xl p-4 text-sm text-brand-navy mt-4">
+              <p className="font-semibold">Notifications enabled</p>
+              <p className="text-xs text-slate-600">
+                Push + WhatsApp reminders for your leads
+              </p>
+            </div>
           </div>
 
-          {completedReminders.length > 0 && (
-            <div className="border-t border-slate-100 pt-4">
-              <button
-                onClick={() =>
-                  setReminderAction(
-                    reminderAction === "completed" ? null : "completed"
-                  )
-                }
-                className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
-              >
-                {reminderAction === "completed" ? "Hide" : "Show"} completed (
-                {completedReminders.length})
-                <span
-                  className={`transition-transform ${
-                    reminderAction === "completed" ? "rotate-90" : ""
-                  }`}
-                >
-                  →
-                </span>
-              </button>
-
-              {reminderAction === "completed" && (
-                <div className="mt-3 space-y-3">
-                  {completedReminders.map((reminder) => (
-                    <div
-                      key={reminder.id}
-                      className="border border-slate-100 rounded-2xl p-4 flex gap-3 items-start opacity-60 bg-slate-50"
-                    >
-                      <div
-                        className={`h-10 w-10 rounded-2xl flex items-center justify-center ${
-                          reminder.type === "call"
-                            ? "bg-brand-blue/10 text-brand-blue"
-                            : reminder.type === "task"
-                            ? "bg-amber-100 text-amber-600"
-                            : "bg-purple-100 text-purple-600"
+          {/* Activity Feed Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase text-slate-400">
+                  Activity Feed
+                </p>
+                <h2 className="text-lg font-semibold">Recent Activities</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative activity-filter-menu">
+                  <button
+                    onClick={() => setShowActivityFilter(!showActivityFilter)}
+                    className="activity-filter-button p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                    title="Filter activities"
+                  >
+                    <Filter className="h-4 w-4 text-brand-blue" />
+                  </button>
+                  {showActivityFilter && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-10">
+                      <button
+                        onClick={() => {
+                          setActivityFilter("all");
+                          setShowActivityFilter(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                          activityFilter === "all"
+                            ? "bg-slate-100 font-medium"
+                            : ""
                         }`}
                       >
-                        {reminder.type === "call" && (
-                          <PhoneCall className="h-5 w-5" />
-                        )}
-                        {reminder.type === "task" && (
-                          <FileText className="h-5 w-5" />
-                        )}
-                        {reminder.type === "note" && (
-                          <Sparkles className="h-5 w-5" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium line-through text-slate-400">
-                          {reminder.title}
-                        </p>
-                        <p className="text-xs text-slate-500">{reminder.due}</p>
-                      </div>
+                        All Activities
+                      </button>
                       <button
-                        onClick={() => handleDeleteReminder(reminder.id)}
-                        className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"
-                        title="Delete reminder"
+                        onClick={() => {
+                          setActivityFilter("lead_created");
+                          setShowActivityFilter(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                          activityFilter === "lead_created"
+                            ? "bg-slate-100 font-medium"
+                            : ""
+                        }`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        New Leads
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActivityFilter("call_completed");
+                          setShowActivityFilter(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                          activityFilter === "call_completed"
+                            ? "bg-slate-100 font-medium"
+                            : ""
+                        }`}
+                      >
+                        Calls
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActivityFilter("ticket_created");
+                          setShowActivityFilter(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-100 ${
+                          activityFilter === "ticket_created"
+                            ? "bg-slate-100 font-medium"
+                            : ""
+                        }`}
+                      >
+                        Tickets
                       </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
+                <Activity className="h-5 w-5 text-brand-blue" />
+              </div>
             </div>
-          )}
 
-          <div className="bg-brand-blue/10 rounded-2xl p-4 text-sm text-brand-navy">
-            <p className="font-semibold">Notifications enabled</p>
-            <p className="text-xs text-slate-600">
-              Push + WhatsApp reminders for your leads
-            </p>
+            <div className="mt-4 space-y-4">
+              {filteredActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="border border-slate-100 rounded-2xl p-4 flex gap-3 items-start hover:bg-slate-50 transition-colors"
+                >
+                  <div
+                    className={`h-10 w-10 rounded-2xl flex items-center justify-center ${activity.color}`}
+                  >
+                    {activity.icon}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{activity.message}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-slate-500">
+                        {activity.timestamp}
+                      </p>
+                      <span className="text-xs text-slate-400">•</span>
+                      <p className="text-xs text-slate-500">{activity.user}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

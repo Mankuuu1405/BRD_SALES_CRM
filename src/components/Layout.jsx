@@ -11,9 +11,14 @@ import {
 const navItems = [
   { path: "/", label: "Home" },
   { path: "/pipeline", label: "Pipeline" },
+  { path: "/marketing", label: "Marketing" },
   { path: "/reports", label: "Reports" },
   { path: "/incentives", label: "Incentives" },
   { path: "/resources", label: "Resources" },
+  { path: "/reminders-alerts", label: "Reminders & Alerts" }, // Added
+  { path: "/support-ticketing", label: "Support & Ticketing" }, // Added
+  { path: "/collection-recovery", label: "Collection & Recovery" }, // Added
+  { path: "/administration", label: "Administration" }, // Added
 ];
 
 export default function Layout({ children, pageTitle, pageDescription }) {
@@ -92,6 +97,10 @@ export default function Layout({ children, pageTitle, pageDescription }) {
         description:
           "Track leads through the complete journey from capture to disbursal.",
       },
+      "/marketing": {
+        title: "Marketing",
+        description: "Manage marketing campaigns and materials.",
+      },
       "/reports": {
         title: "Reports & Analytics",
         description: "Track KPIs, conversion trends, and performance metrics.",
@@ -104,6 +113,26 @@ export default function Layout({ children, pageTitle, pageDescription }) {
         title: "Resources & Training",
         description:
           "Access product guides, training materials, and support resources.",
+      },
+      "/reminders-alerts": {
+        // Added
+        title: "Reminders & Alerts",
+        description: "Manage reminders and system alerts.",
+      },
+      "/support-ticketing": {
+        // Added
+        title: "Support & Ticketing",
+        description: "Create and track support tickets.",
+      },
+      "/collection-recovery": {
+        // Added
+        title: "Collection & Recovery",
+        description: "Monitor collection activities and recovery processes.",
+      },
+      "/administration": {
+        // Added
+        title: "Administration",
+        description: "System configuration and user management.",
       },
     };
     return (

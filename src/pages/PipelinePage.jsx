@@ -14,6 +14,13 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  Plus,
+  Edit,
+  Trash2,
+  Star,
+  Filter,
+  Search,
+  Save,
 } from "lucide-react";
 import {
   pipelineColumns,
@@ -68,6 +75,31 @@ const stageOrder = [
   "Disbursed",
 ];
 
+// Lead scoring criteria
+const scoringCriteria = {
+  loanAmount: {
+    high: { min: 500000, score: 30 },
+    medium: { min: 200000, score: 20 },
+    low: { min: 0, score: 10 },
+  },
+  engagement: {
+    high: { score: 25 },
+    medium: { score: 15 },
+    low: { score: 5 },
+  },
+  documentation: {
+    complete: { score: 20 },
+    partial: { score: 10 },
+    missing: { score: 0 },
+  },
+  creditHistory: {
+    excellent: { score: 25 },
+    good: { score: 15 },
+    fair: { score: 5 },
+    poor: { score: 0 },
+  },
+};
+
 export default function PipelinePage({ activeFilter, filterMeta }) {
   const [showAllStages, setShowAllStages] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -75,6 +107,31 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
   const [pipelineData, setPipelineData] = useState(pipelineColumns);
   const [crmSyncStatus, setCrmSyncStatus] = useState({});
   const [showCrmDetails, setShowCrmDetails] = useState(null);
+
+  // New states for Add/Edit/Delete functionality
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [showEditLeadModal, setShowEditLeadModal] = useState(false);
+  const [newLead, setNewLead] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    loan: "",
+    amount: "",
+    stage: "New",
+    score: 0,
+    engagement: "medium",
+    documentation: "partial",
+    creditHistory: "good",
+  });
+
+  // New state for lead scoring visibility
+  const [showScoringDetails, setShowScoringDetails] = useState(false);
+
+  // New state for search functionality
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // New state for status management
+  const [statusNotes, setStatusNotes] = useState({});
 
   const fallbackFilterMeta = useMemo(
     () => applyPipelineFilter(pipelineColumns, activeFilter),
@@ -86,12 +143,59 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
     ? quickFilterLabels[activeFilter]
     : "All leads";
 
+  // Function to calculate lead score
+  const calculateLeadScore = (lead) => {
+    let score = 0;
+
+    // Score based on loan amount
+    const amount = parseInt(lead.amount.replace(/[^0-9]/g, ""));
+    if (amount >= scoringCriteria.loanAmount.high.min) {
+      score += scoringCriteria.loanAmount.high.score;
+    } else if (amount >= scoringCriteria.loanAmount.medium.min) {
+      score += scoringCriteria.loanAmount.medium.score;
+    } else {
+      score += scoringCriteria.loanAmount.low.score;
+    }
+
+    // Score based on engagement
+    score += scoringCriteria.engagement[lead.engagement || "medium"].score;
+
+    // Score based on documentation
+    score +=
+      scoringCriteria.documentation[lead.documentation || "partial"].score;
+
+    // Score based on credit history
+    score += scoringCriteria.creditHistory[lead.creditHistory || "good"].score;
+
+    return score;
+  };
+
+  // Function to get score color based on value
+  const getScoreColor = (score) => {
+    if (score >= 80) return "text-green-600 bg-green-50";
+    if (score >= 50) return "text-amber-600 bg-amber-50";
+    return "text-red-600 bg-red-50";
+  };
+
+  // Function to get score label
+  const getScoreLabel = (score) => {
+    if (score >= 80) return "Hot Lead";
+    if (score >= 50) return "Warm Lead";
+    return "Cold Lead";
+  };
+
   const toggleViewAllStages = () => {
     setShowAllStages(!showAllStages);
   };
 
   const handleViewDetails = (lead, stage) => {
-    setSelectedLead({ ...lead, currentStage: stage });
+    // Calculate score if not already present
+    const leadWithScore = {
+      ...lead,
+      score: lead.score || calculateLeadScore(lead),
+      currentStage: stage,
+    };
+    setSelectedLead(leadWithScore);
     setShowDetailsModal(true);
   };
 
@@ -121,6 +225,122 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
       // Show success notification
       showNotification(`${lead.name} moved to ${nextStage}`);
     }
+  };
+
+  const handleAddLead = () => {
+    // Calculate score for the new lead
+    const leadWithScore = {
+      ...newLead,
+      score: calculateLeadScore(newLead),
+      timeAgo: "Just now",
+    };
+
+    // Add the new lead to the appropriate stage
+    const updatedPipelineData = pipelineData.map((column) => {
+      if (column.stage === newLead.stage) {
+        return {
+          ...column,
+          leads: [...column.leads, leadWithScore],
+        };
+      }
+      return column;
+    });
+
+    setPipelineData(updatedPipelineData);
+    setShowAddLeadModal(false);
+
+    // Reset the form
+    setNewLead({
+      name: "",
+      phone: "",
+      email: "",
+      loan: "",
+      amount: "",
+      stage: "New",
+      score: 0,
+      engagement: "medium",
+      documentation: "partial",
+      creditHistory: "good",
+    });
+
+    showNotification(`${leadWithScore.name} added successfully`);
+  };
+
+  const handleEditLead = () => {
+    // Calculate score for the updated lead
+    const leadWithScore = {
+      ...selectedLead,
+      ...newLead,
+      score: calculateLeadScore(newLead),
+    };
+
+    // Update the lead in the pipeline
+    const updatedPipelineData = pipelineData.map((column) => {
+      if (column.stage === selectedLead.currentStage) {
+        return {
+          ...column,
+          leads: column.leads.map((lead) =>
+            lead.name === selectedLead.name ? leadWithScore : lead
+          ),
+        };
+      }
+      return column;
+    });
+
+    setPipelineData(updatedPipelineData);
+    setShowEditLeadModal(false);
+    setShowDetailsModal(false);
+
+    showNotification(`${leadWithScore.name} updated successfully`);
+  };
+
+  const handleDeleteLead = (lead, stage) => {
+    // Remove the lead from the pipeline
+    const updatedPipelineData = pipelineData.map((column) => {
+      if (column.stage === stage) {
+        return {
+          ...column,
+          leads: column.leads.filter((l) => l.name !== lead.name),
+        };
+      }
+      return column;
+    });
+
+    setPipelineData(updatedPipelineData);
+    setShowDetailsModal(false);
+
+    showNotification(`${lead.name} deleted successfully`);
+  };
+
+  const handleStatusUpdate = (lead, stage, status, note) => {
+    // Update the lead status with note
+    const updatedLead = {
+      ...lead,
+      status,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Store the status note
+    setStatusNotes((prev) => ({
+      ...prev,
+      [lead.name]: note,
+    }));
+
+    // Update the lead in the pipeline
+    const updatedPipelineData = pipelineData.map((column) => {
+      if (column.stage === stage) {
+        return {
+          ...column,
+          leads: column.leads.map((l) =>
+            l.name === lead.name ? updatedLead : l
+          ),
+        };
+      }
+      return column;
+    });
+
+    setPipelineData(updatedPipelineData);
+    showNotification(`Status updated for ${lead.name}`);
   };
 
   const handleCrmSync = (integration) => {
@@ -195,8 +415,22 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
     setShowCrmDetails(null);
   };
 
+  // Filter leads based on search query
+  const filteredColumns = useMemo(() => {
+    if (!searchQuery) return columns;
+
+    return columns.map((column) => ({
+      ...column,
+      leads: column.leads.filter(
+        (lead) =>
+          lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          lead.loan.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    }));
+  }, [columns, searchQuery]);
+
   // Use the updated pipeline data for rendering
-  const currentColumns = showAllStages ? pipelineData : columns;
+  const currentColumns = showAllStages ? pipelineData : filteredColumns;
 
   const getSyncIcon = (integration) => {
     const status = crmSyncStatus[integration.name];
@@ -243,20 +477,43 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
                 </p>
               )}
             </div>
-            <button
-              onClick={toggleViewAllStages}
-              className="text-xs text-brand-blue flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-            >
-              {showAllStages ? (
-                <>
-                  Compact view <ChevronDown className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  View all stages <ChevronRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Search functionality */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-2 py-1 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                />
+              </div>
+
+              {/* Add lead button */}
+              <button
+                onClick={() => setShowAddLeadModal(true)}
+                className="text-xs bg-brand-blue text-white flex items-center gap-1 hover:bg-brand-blue/90 px-2 py-1 rounded transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add Lead
+              </button>
+
+              <button
+                onClick={toggleViewAllStages}
+                className="text-xs text-brand-blue flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+              >
+                {showAllStages ? (
+                  <>
+                    Compact view <ChevronDown className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    View all stages <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto px-6 pb-6">
             <div
@@ -281,44 +538,61 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
                     </span>
                   </div>
                   <div className="mt-3 space-y-3">
-                    {column.leads.map((lead) => (
-                      <div
-                        key={lead.name}
-                        className="bg-slate-50 rounded-2xl p-3 hover:shadow-md transition-shadow cursor-pointer"
-                      >
-                        <p className="font-medium text-sm">{lead.name}</p>
-                        <p className="text-xs text-slate-500">{lead.loan}</p>
-                        <div className="flex justify-between text-xs text-slate-500 mt-2">
-                          <span>{lead.amount}</span>
-                          <span>{lead.timeAgo}</span>
-                        </div>
-                        {showAllStages && (
-                          <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between gap-2">
-                            <button
-                              onClick={() =>
-                                handleViewDetails(lead, column.stage)
-                              }
-                              className="text-xs text-brand-blue font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    {column.leads.map((lead) => {
+                      const score = lead.score || calculateLeadScore(lead);
+                      return (
+                        <div
+                          key={lead.name}
+                          className="bg-slate-50 rounded-2xl p-3 hover:shadow-md transition-shadow cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{lead.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {lead.loan}
+                              </p>
+                              <div className="flex justify-between text-xs text-slate-500 mt-2">
+                                <span>{lead.amount}</span>
+                                <span>{lead.timeAgo}</span>
+                              </div>
+                            </div>
+                            {/* Lead score indicator */}
+                            <div
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(
+                                score
+                              )}`}
                             >
-                              <FileText className="h-3 w-3" />
-                              View details
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleMoveToNextStage(lead, column.stage)
-                              }
-                              className="text-xs text-brand-blue font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                              disabled={column.stage === "Disbursed"}
-                            >
-                              <ArrowRight className="h-3 w-3" />
-                              {column.stage === "Disbursed"
-                                ? "Final stage"
-                                : "Move to next"}
-                            </button>
+                              {score}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {showAllStages && (
+                            <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between gap-2">
+                              <button
+                                onClick={() =>
+                                  handleViewDetails(lead, column.stage)
+                                }
+                                className="text-xs text-brand-blue font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                              >
+                                <FileText className="h-3 w-3" />
+                                View details
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleMoveToNextStage(lead, column.stage)
+                                }
+                                className="text-xs text-brand-blue font-medium hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                disabled={column.stage === "Disbursed"}
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                                {column.stage === "Disbursed"
+                                  ? "Final stage"
+                                  : "Move to next"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -431,6 +705,101 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
                 </div>
               </div>
 
+              {/* Lead Score */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm text-slate-700">
+                    Lead Score
+                  </h4>
+                  <button
+                    onClick={() => setShowScoringDetails(!showScoringDetails)}
+                    className="text-xs text-brand-blue hover:underline"
+                  >
+                    {showScoringDetails ? "Hide" : "Show"} Details
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                      selectedLead.score || calculateLeadScore(selectedLead)
+                    )}`}
+                  >
+                    {selectedLead.score || calculateLeadScore(selectedLead)} -{" "}
+                    {getScoreLabel(
+                      selectedLead.score || calculateLeadScore(selectedLead)
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i <
+                          Math.ceil(
+                            (selectedLead.score ||
+                              calculateLeadScore(selectedLead)) / 20
+                          )
+                            ? "text-amber-400 fill-current"
+                            : "text-slate-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scoring Details */}
+                {showScoringDetails && (
+                  <div className="mt-3 bg-slate-50 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Loan Amount:</span>
+                      <span className="font-medium">
+                        {parseInt(selectedLead.amount.replace(/[^0-9]/g, "")) >=
+                        scoringCriteria.loanAmount.high.min
+                          ? `${scoringCriteria.loanAmount.high.score} pts`
+                          : parseInt(
+                              selectedLead.amount.replace(/[^0-9]/g, "")
+                            ) >= scoringCriteria.loanAmount.medium.min
+                          ? `${scoringCriteria.loanAmount.medium.score} pts`
+                          : `${scoringCriteria.loanAmount.low.score} pts`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Engagement:</span>
+                      <span className="font-medium">
+                        {
+                          scoringCriteria.engagement[
+                            selectedLead.engagement || "medium"
+                          ].score
+                        }{" "}
+                        pts
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Documentation:</span>
+                      <span className="font-medium">
+                        {
+                          scoringCriteria.documentation[
+                            selectedLead.documentation || "partial"
+                          ].score
+                        }{" "}
+                        pts
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Credit History:</span>
+                      <span className="font-medium">
+                        {
+                          scoringCriteria.creditHistory[
+                            selectedLead.creditHistory || "good"
+                          ].score
+                        }{" "}
+                        pts
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Contact Information */}
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-slate-700">
@@ -504,8 +873,71 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
                 </div>
               </div>
 
+              {/* Status Management */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Status Management
+                </h4>
+                <div className="space-y-2">
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    defaultValue="active"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="follow-up">Follow-up Required</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                  <textarea
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    rows={2}
+                    placeholder="Add status notes..."
+                    defaultValue={statusNotes[selectedLead.name] || ""}
+                  ></textarea>
+                  <button
+                    onClick={() => {
+                      const statusSelect = document.querySelector("select");
+                      const notesTextarea = document.querySelector("textarea");
+                      handleStatusUpdate(
+                        selectedLead,
+                        selectedLead.currentStage,
+                        statusSelect.value,
+                        notesTextarea.value
+                      );
+                    }}
+                    className="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+                  >
+                    Update Status
+                  </button>
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    setNewLead({
+                      name: selectedLead.name,
+                      phone: "+91 98765 43210",
+                      email: `${selectedLead.name
+                        .toLowerCase()
+                        .replace(" ", ".")}@example.com`,
+                      loan: selectedLead.loan,
+                      amount: selectedLead.amount,
+                      stage: selectedLead.currentStage,
+                      score:
+                        selectedLead.score || calculateLeadScore(selectedLead),
+                      engagement: selectedLead.engagement || "medium",
+                      documentation: selectedLead.documentation || "partial",
+                      creditHistory: selectedLead.creditHistory || "good",
+                    });
+                    setShowEditLeadModal(true);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </button>
                 <button
                   onClick={() => {
                     handleMoveToNextStage(
@@ -522,10 +954,443 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
                     : "Move to Next Stage"}
                 </button>
                 <button
-                  onClick={closeModal}
+                  onClick={() => {
+                    handleDeleteLead(selectedLead, selectedLead.currentStage);
+                  }}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Lead Modal */}
+      {showAddLeadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h2 className="text-xl font-semibold text-brand-navy">
+                Add New Lead
+              </h2>
+              <button
+                onClick={() => setShowAddLeadModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Basic Information */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Basic Information
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.name}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, name: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter lead name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.phone}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, phone: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={newLead.email}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, email: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Information */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Loan Information
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Loan Type
+                    </label>
+                    <select
+                      value={newLead.loan}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, loan: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="">Select loan type</option>
+                      <option value="Home Loan">Home Loan</option>
+                      <option value="Personal Loan">Personal Loan</option>
+                      <option value="Car Loan">Car Loan</option>
+                      <option value="Business Loan">Business Loan</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Amount
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.amount}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, amount: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter loan amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Stage
+                    </label>
+                    <select
+                      value={newLead.stage}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, stage: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="New">New</option>
+                      <option value="Contacted">Contacted</option>
+                      <option value="Application Submitted">
+                        Application Submitted
+                      </option>
+                      <option value="Approved">Approved</option>
+                      <option value="Disbursed">Disbursed</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lead Scoring Criteria */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Lead Scoring Criteria
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Engagement Level
+                    </label>
+                    <select
+                      value={newLead.engagement}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, engagement: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Documentation Status
+                    </label>
+                    <select
+                      value={newLead.documentation}
+                      onChange={(e) =>
+                        setNewLead({
+                          ...newLead,
+                          documentation: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="complete">Complete</option>
+                      <option value="partial">Partial</option>
+                      <option value="missing">Missing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Credit History
+                    </label>
+                    <select
+                      value={newLead.creditHistory}
+                      onChange={(e) =>
+                        setNewLead({
+                          ...newLead,
+                          creditHistory: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setShowAddLeadModal(false)}
                   className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
                 >
-                  Close
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddLead}
+                  disabled={!newLead.name || !newLead.loan || !newLead.amount}
+                  className="flex-1 px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="h-4 w-4" />
+                  Add Lead
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Lead Modal */}
+      {showEditLeadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h2 className="text-xl font-semibold text-brand-navy">
+                Edit Lead
+              </h2>
+              <button
+                onClick={() => setShowEditLeadModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Basic Information */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Basic Information
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.name}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, name: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter lead name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.phone}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, phone: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={newLead.email}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, email: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter email address"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Information */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Loan Information
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Loan Type
+                    </label>
+                    <select
+                      value={newLead.loan}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, loan: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="">Select loan type</option>
+                      <option value="Home Loan">Home Loan</option>
+                      <option value="Personal Loan">Personal Loan</option>
+                      <option value="Car Loan">Car Loan</option>
+                      <option value="Business Loan">Business Loan</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Amount
+                    </label>
+                    <input
+                      type="text"
+                      value={newLead.amount}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, amount: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                      placeholder="Enter loan amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Stage
+                    </label>
+                    <select
+                      value={newLead.stage}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, stage: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="New">New</option>
+                      <option value="Contacted">Contacted</option>
+                      <option value="Application Submitted">
+                        Application Submitted
+                      </option>
+                      <option value="Approved">Approved</option>
+                      <option value="Disbursed">Disbursed</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lead Scoring Criteria */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-slate-700">
+                  Lead Scoring Criteria
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Engagement Level
+                    </label>
+                    <select
+                      value={newLead.engagement}
+                      onChange={(e) =>
+                        setNewLead({ ...newLead, engagement: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Documentation Status
+                    </label>
+                    <select
+                      value={newLead.documentation}
+                      onChange={(e) =>
+                        setNewLead({
+                          ...newLead,
+                          documentation: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="complete">Complete</option>
+                      <option value="partial">Partial</option>
+                      <option value="missing">Missing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Credit History
+                    </label>
+                    <select
+                      value={newLead.creditHistory}
+                      onChange={(e) =>
+                        setNewLead({
+                          ...newLead,
+                          creditHistory: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+                    >
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setShowEditLeadModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditLead}
+                  disabled={!newLead.name || !newLead.loan || !newLead.amount}
+                  className="flex-1 px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="h-4 w-4" />
+                  Save Changes
                 </button>
               </div>
             </div>
