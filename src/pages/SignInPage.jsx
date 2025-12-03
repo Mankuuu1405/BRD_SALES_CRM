@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { UserPlus, Mail, Lock, Building2, Briefcase, User } from "lucide-react";
+import {
+  UserPlus,
+  Mail,
+  Lock,
+  Building2,
+  Briefcase,
+  AlertCircle,
+} from "lucide-react";
 
 export default function SignInPage({ onSignIn }) {
   const [formData, setFormData] = useState({
@@ -10,62 +17,62 @@ export default function SignInPage({ onSignIn }) {
     confirmPassword: "",
     role: "Sales Executive",
   });
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    const isAuth = localStorage.getItem("isAuthenticated");
-    if (isAuth === "true") {
-      navigate("/");
-    }
-  }, [navigate]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
+    // Basic validation
     if (
       !formData.name ||
       !formData.email ||
       !formData.password ||
       !formData.confirmPassword
     ) {
-      setError("Please fill in all fields");
+      setError("Please fill in all fields.");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Password must be at least 6 characters.");
       return;
     }
 
-    // Simulate sign-in - in real app, this would call an API
-    const userData = {
-      name: formData.name,
-      email: formData.email,
-      role: formData.role,
-    };
+    setIsLoading(true);
 
-    if (onSignIn) {
-      onSignIn(userData);
+    try {
+      const result = await onSignIn({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+      });
+
+      if (result.success) {
+        // If sign-in is successful, navigate to the dashboard
+        navigate("/");
+      } else {
+        // If sign-in fails, display the error message from the API/context
+        setError(result.error || "An unknown error occurred.");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    // Store in localStorage
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("isAuthenticated", "true");
-
-    navigate("/");
   };
 
   const roles = [
@@ -109,7 +116,7 @@ export default function SignInPage({ onSignIn }) {
                 Full Name
               </label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <UserPlus className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                 <input
                   type="text"
                   value={formData.name}
@@ -151,15 +158,15 @@ export default function SignInPage({ onSignIn }) {
                       key={role.value}
                       type="button"
                       onClick={() => handleChange("role", role.value)}
-                        className={`p-4 rounded-2xl border-2 transition-all text-left h-full ${
+                      className={`p-4 rounded-2xl border-2 transition-all text-left h-full ${
                         isSelected
                           ? "border-brand-blue bg-brand-blue/10"
                           : "border-slate-200 hover:border-brand-blue/50"
                       }`}
                     >
-                        <div className="flex flex-col gap-3">
-                          <div
-                            className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+                      <div className="flex flex-col gap-3">
+                        <div
+                          className={`h-12 w-12 rounded-xl flex items-center justify-center ${
                             isSelected
                               ? "bg-brand-blue text-white"
                               : "bg-slate-100 text-slate-600"
@@ -169,13 +176,13 @@ export default function SignInPage({ onSignIn }) {
                         </div>
                         <div>
                           <p
-                              className={`font-semibold text-base leading-tight ${
+                            className={`font-semibold text-base leading-tight ${
                               isSelected ? "text-brand-blue" : "text-slate-700"
                             }`}
                           >
                             {role.label}
                           </p>
-                            <p className="text-xs text-slate-500 mt-1 leading-snug">
+                          <p className="text-xs text-slate-500 mt-1 leading-snug">
                             {role.description}
                           </p>
                         </div>
@@ -223,17 +230,25 @@ export default function SignInPage({ onSignIn }) {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
                 {error}
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full bg-brand-blue text-white rounded-xl py-3 font-semibold shadow-lg hover:bg-brand-navy transition-colors flex items-center justify-center gap-2"
+              disabled={isLoading}
+              className="w-full bg-brand-blue text-white rounded-xl py-3 font-semibold shadow-lg hover:bg-brand-navy transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <UserPlus className="h-5 w-5" />
-              Create Account
+              {isLoading ? (
+                "Creating Account..."
+              ) : (
+                <>
+                  <UserPlus className="h-5 w-5" />
+                  Create Account
+                </>
+              )}
             </button>
           </form>
 

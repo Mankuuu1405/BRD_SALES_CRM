@@ -1,68 +1,97 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronRight, Bell, LogOut, Settings } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { applyPipelineFilter, pipelineColumns, quickFilterLabels } from '../data/pipelineData';
+import React, { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom"; // 1. IMPORT Outlet
+import { ChevronRight, Bell, LogOut, Settings } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = [
-  { path: '/', label: 'Home' },
-  { path: '/pipeline', label: 'Pipeline' },
-  { path: '/reports', label: 'Reports' },
-  { path: '/incentives', label: 'Incentives' },
-  { path: '/resources', label: 'Resources' },
+  { path: "/", label: "Home" },
+  { path: "/pipeline", label: "Pipeline" },
+  { path: "/reports", label: "Reports" },
+  { path: "/incentives", label: "Incentives" },
+  { path: "/resources", label: "Resources" },
 ];
 
-export default function Layout({ children, pageTitle, pageDescription }) {
+// 2. REMOVE 'children' FROM THE PROPS
+export default function Layout({
+  activeFilter,
+  setActiveFilter,
+  quickFilterLabels,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, notifications, unreadCount, markNotificationAsRead, markAllNotificationsAsRead } = useAuth();
+  const {
+    user,
+    logout,
+    notifications,
+    unreadCount,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+  } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeFilter, setActiveFilter] = useState(null);
   const notificationRef = useRef(null);
-  const computedQuickFilters = useMemo(
-    () => ['my-leads', 'team-leads', 'pending-docs', 'payout-due'].map((id) => ({ id, label: quickFilterLabels[id] })),
-    []
-  );
-  const filterMeta = useMemo(() => applyPipelineFilter(pipelineColumns, activeFilter), [activeFilter]);
-  const activeFilterLabel = activeFilter ? quickFilterLabels[activeFilter] : 'All leads';
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
         setShowNotifications(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const handleNotificationClick = (id) => {
     markNotificationAsRead(id);
   };
 
-  // Get page title and description based on route
   const getPageInfo = () => {
     const routeInfo = {
-      '/': { title: 'Sales Team Dashboard', description: 'Capture leads, monitor progress, track incentives.' },
-      '/pipeline': { title: 'Lead Pipeline', description: 'Track leads through the complete journey from capture to disbursal.' },
-      '/reports': { title: 'Reports & Analytics', description: 'Track KPIs, conversion trends, and performance metrics.' },
-      '/incentives': { title: 'Incentives & Commissions', description: 'View your commission statements and incentive breakdown.' },
-      '/resources': { title: 'Resources & Training', description: 'Access product guides, training materials, and support resources.' },
+      "/": {
+        title: "Sales Team Dashboard",
+        description: "Capture leads, monitor progress, track incentives.",
+      },
+      "/pipeline": {
+        title: "Lead Pipeline",
+        description:
+          "Track leads through the complete journey from capture to disbursal.",
+      },
+      "/reports": {
+        title: "Reports & Analytics",
+        description: "Track KPIs, conversion trends, and performance metrics.",
+      },
+      "/incentives": {
+        title: "Incentives & Commissions",
+        description: "View your commission statements and incentive breakdown.",
+      },
+      "/resources": {
+        title: "Resources & Training",
+        description:
+          "Access product guides, training materials, and support resources.",
+      },
     };
-    return routeInfo[location.pathname] || { title: pageTitle || 'Dashboard', description: pageDescription || '' };
+    return (
+      routeInfo[location.pathname] || { title: "Dashboard", description: "" }
+    );
   };
 
   const pageInfo = getPageInfo();
+  const activeFilterLabel = activeFilter
+    ? quickFilterLabels[activeFilter]
+    : "All leads";
 
   return (
     <div className="min-h-screen bg-brand-sand text-brand-navy">
       <div className="flex flex-col lg:flex-row">
+        {/* Sidebar remains the same */}
         <aside className="w-full lg:w-64 bg-white/95 border-r border-slate-100 min-h-screen sticky top-0">
           <div className="flex flex-col h-full">
             <div className="px-6 py-6 flex items-center gap-3">
@@ -71,7 +100,9 @@ export default function Layout({ children, pageTitle, pageDescription }) {
               </div>
               <div>
                 <p className="font-semibold">Xpertlend Sales</p>
-                <p className="text-sm text-slate-500">{user?.role || 'Field Ops'}</p>
+                <p className="text-sm text-slate-500">
+                  {user?.role || "Field Ops"}
+                </p>
               </div>
             </div>
             <div className="flex-1 flex flex-col justify-between pb-6">
@@ -84,8 +115,8 @@ export default function Layout({ children, pageTitle, pageDescription }) {
                       to={item.path}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors ${
                         isActive
-                          ? 'bg-brand-blue/10 text-brand-blue font-semibold'
-                          : 'hover:text-brand-blue hover:bg-brand-blue/5'
+                          ? "bg-brand-blue/10 text-brand-blue font-semibold"
+                          : "hover:text-brand-blue hover:bg-brand-blue/5"
                       }`}
                     >
                       <span>{item.label}</span>
@@ -98,9 +129,9 @@ export default function Layout({ children, pageTitle, pageDescription }) {
                 <Link
                   to="/settings"
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-sm transition-colors ${
-                    location.pathname === '/settings'
-                      ? 'border-brand-blue text-brand-blue bg-brand-blue/5'
-                      : 'border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue'
+                    location.pathname === "/settings"
+                      ? "border-brand-blue text-brand-blue bg-brand-blue/5"
+                      : "border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -124,39 +155,34 @@ export default function Layout({ children, pageTitle, pageDescription }) {
         <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 space-y-6">
           <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-500">Dashboard / {pageInfo.title}</p>
-              <h1 className="text-2xl font-semibold text-brand-navy">{pageInfo.title}</h1>
+              <p className="text-sm text-slate-500">
+                Dashboard / {pageInfo.title}
+              </p>
+              <h1 className="text-2xl font-semibold text-brand-navy">
+                {pageInfo.title}
+              </h1>
               <p className="text-sm text-slate-500">{pageInfo.description}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 justify-end text-right">
               <div className="mr-2">
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Filter</p>
-                <p className="text-xs text-slate-500">
-                  {activeFilterLabel}{' '}
-                  <span className="text-slate-400">
-                    •{' '}
-                    {activeFilter
-                      ? filterMeta.matched
-                        ? `${filterMeta.filteredCount} lead${filterMeta.filteredCount === 1 ? '' : 's'}`
-                        : 'No matches'
-                      : `${filterMeta.filteredCount} lead${filterMeta.filteredCount === 1 ? '' : 's'}`}
-                  </span>
+                <p className="text-[11px] uppercase tracking-widest text-slate-400">
+                  Filter
                 </p>
-                {activeFilter && !filterMeta.matched && (
-                  <p className="text-[11px] text-amber-600">Showing all data.</p>
-                )}
+                <p className="text-xs text-slate-500">{activeFilterLabel}</p>
               </div>
-              {computedQuickFilters.map((filter) => (
+              {Object.entries(quickFilterLabels).map(([id, label]) => (
                 <button
-                  key={filter.id}
-                  onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
+                  key={id}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === id ? null : id)
+                  }
                   className={`px-3 py-2 text-xs rounded-full border transition-colors ${
-                    activeFilter === filter.id
-                      ? 'border-brand-blue bg-brand-blue text-white'
-                      : 'border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue'
+                    activeFilter === id
+                      ? "border-brand-blue bg-brand-blue text-white"
+                      : "border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue"
                   }`}
                 >
-                  {filter.label}
+                  {label}
                 </button>
               ))}
               {activeFilter && (
@@ -175,7 +201,7 @@ export default function Layout({ children, pageTitle, pageDescription }) {
                   <Bell className="h-5 w-5 text-brand-blue" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-brand-emerald text-white text-xs flex items-center justify-center font-semibold">
-                      {unreadCount > 9 ? '9+' : unreadCount}
+                      {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </button>
@@ -183,7 +209,9 @@ export default function Layout({ children, pageTitle, pageDescription }) {
                 {showNotifications && (
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 max-h-96 overflow-hidden flex flex-col">
                     <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                      <h3 className="font-semibold text-brand-navy">Notifications</h3>
+                      <h3 className="font-semibold text-brand-navy">
+                        Notifications
+                      </h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllNotificationsAsRead}
@@ -202,13 +230,19 @@ export default function Layout({ children, pageTitle, pageDescription }) {
                         notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            onClick={() => handleNotificationClick(notification.id)}
+                            onClick={() =>
+                              handleNotificationClick(notification.id)
+                            }
                             className={`px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors ${
-                              !notification.read ? 'bg-brand-blue/5' : ''
+                              !notification.read ? "bg-brand-blue/5" : ""
                             }`}
                           >
-                            <p className="text-sm text-brand-navy">{notification.message}</p>
-                            <p className="text-xs text-slate-500 mt-1">{notification.time}</p>
+                            <p className="text-sm text-brand-navy">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {notification.time}
+                            </p>
                           </div>
                         ))
                       )}
@@ -218,7 +252,8 @@ export default function Layout({ children, pageTitle, pageDescription }) {
               </div>
             </div>
           </header>
-          {React.cloneElement(children, { activeFilter, setActiveFilter, filterMeta })}
+          {/* 3. REPLACE {children} WITH <Outlet /> */}
+          <Outlet />
         </main>
       </div>
     </div>

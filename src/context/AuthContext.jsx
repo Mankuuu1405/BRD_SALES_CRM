@@ -1,77 +1,171 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { apiClient } from "../services/api";
 
+// Create the context
 const AuthContext = createContext();
 
+// Custom hook to use the context
 export function useAuth() {
   return useContext(AuthContext);
 }
 
+// The provider component
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: 'New lead assigned: Kavya Steel', time: '2 min ago', read: false },
-    { id: 2, message: 'Application approved: Vihaan Infra', time: '15 min ago', read: false },
-    { id: 3, message: 'Reminder: Follow-up call due in 1 hour', time: '1 hour ago', read: true },
-    { id: 4, message: 'Incentive payout processed', time: '2 hours ago', read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Effect for initial authentication check on app load
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('user');
-    const storedAuth = localStorage.getItem('isAuthenticated');
-    
-    if (storedUser && storedAuth === 'true') {
-      setUser(JSON.parse(storedUser));
+    const token = localStorage.getItem("authToken");
+
+    if (token) {
+      apiClient
+        .get("/auth/validate")
+        .then((response) => {
+          setUser(response.data.user);
+          setIsAuthenticated(true);
+        })
+        .catch((error) => {
+          console.error("Token validation failed:", error);
+          logout(); // Use the logout function to clean up
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, []); // This effect runs only once on component mount
+
+  // --- Memoize functions with useCallback to prevent infinite loops ---
+
+  const login = useCallback(async (credentials) => {
+    try {
+      const response = await apiClient.post("/auth/login", credentials);
+      const { user: loggedInUser, token } = response.data;
+
+      localStorage.setItem("authToken", token);
+      setUser(loggedInUser);
       setIsAuthenticated(true);
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Login failed",
+      };
     }
   }, []);
 
-  const login = (userData) => {
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('isAuthenticated', 'true');
-  };
+  const signIn = useCallback(async (userData) => {
+    try {
+      const response = await apiClient.post("/auth/signin", userData);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Sign-in failed",
+      };
+    }
+  }, []);
 
-  const signIn = (userData) => {
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('isAuthenticated', 'true');
-  };
-
-  const logout = () => {
+  const logout = useCallback(async () => {
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
-  };
+    setNotifications([]);
+    localStorage.removeItem("authToken");
+  }, []);
 
-  const markNotificationAsRead = (id) => {
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await apiClient.get("/notifications");
+      setNotifications(response.data);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
+    }
+  }, [isAuthenticated, fetchNotifications]);
+
+  const markNotificationAsRead = useCallback(async (id) => {
     setNotifications((prev) =>
       prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
     );
-  };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
-  };
+    try {
+      await apiClient.patch(`/notifications/${id}/read`);
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif.id === id ? { ...notif, read: false } : notif
+        )
+      );
+    }
+  }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markAllNotificationsAsRead = useCallback(async () => {
+    const readNotifications = notifications.map((notif) => ({
+      ...notif,
+      read: true,
+    }));
+    setNotifications(readNotifications);
 
-  const value = {
-    user,
-    isAuthenticated,
-    login,
-    signIn,
-    logout,
-    notifications,
-    unreadCount,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-  };
+    try {
+      await apiClient.patch("/notifications/read-all");
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+      setNotifications(notifications);
+    }
+  }, [notifications]);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  // Memoize the entire value object to prevent it from being recreated on every render
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated,
+      isLoading,
+      login,
+      signIn,
+      logout,
+      notifications,
+      unreadCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+    }),
+    [
+      user,
+      isAuthenticated,
+      isLoading,
+      notifications,
+      unreadCount,
+      login,
+      signIn,
+      logout,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+    ]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
