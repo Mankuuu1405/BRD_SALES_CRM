@@ -279,7 +279,7 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
 
   return (
     <>
-      <section className="grid 2xl:grid-cols-3 gap-6">
+      <section className="grid lg:grid-cols-2 2xl:grid-cols-3 gap-6">
         <div
           className={`bg-white rounded-2xl border border-slate-100 shadow-sm ${showAllStages ? "col-span-3" : "col-span-2"
             }`}
@@ -316,7 +316,7 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
           </div>
           <div className="overflow-x-auto px-6 pb-6">
             <div
-              className={`min-w-[720px] ${showAllStages ? "grid-cols-5" : "grid-cols-5"
+              className={`min-w-0 sm:min-w-[720px] ${showAllStages ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
                 } grid gap-4 pt-4`}
             >
               {/* FIX: Restored the complete JSX for the map function */}

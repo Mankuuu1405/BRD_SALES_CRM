@@ -516,7 +516,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Settings className="h-6 w-6 text-brand-blue" />
             <h1 className="text-xl font-semibold text-brand-navy">Settings</h1>
@@ -533,7 +533,7 @@ export default function SettingsPage() {
 
       {/* Navigation Tabs */}
       <div className="bg-white border-b border-slate-200">
-        <div className="flex space-x-8 px-6">
+        <div className="flex overflow-x-auto no-scrollbar space-x-8 px-6">
           <button
             onClick={() => setActiveSection("profile")}
             className={`py-4 border-b-2 transition-colors ${activeSection === "profile"

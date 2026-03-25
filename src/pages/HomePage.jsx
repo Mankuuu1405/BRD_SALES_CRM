@@ -1138,7 +1138,7 @@ export default function HomePage({ activeFilter, filterMeta }) {
 
         {/* Quick Actions Menu */}
         {showQuickActions && (
-          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px]">
+          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-slate-200 p-2 w-48 sm:min-w-[200px]">
             <button
               onClick={() => handleQuickAction("call")}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100 transition-colors"
