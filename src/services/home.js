@@ -436,6 +436,20 @@ export const teamService = {
    */
   delete: (id) => request(`/api/team/${id}/`, "DELETE"),
 
+  /**
+   * Get team performance metrics for all team members.
+   * GET /api/team/performance/
+   * Returns array of performance data with real metrics from leads
+   */
+  getPerformance: () => request("/api/team/performance/"),
+
+  /**
+   * Get detailed performance for a specific team member.
+   * GET /api/team/:id/individual_performance/
+   * Returns detailed performance including weekly trends and stage breakdown
+   */
+  getIndividualPerformance: (id) => request(`/api/team/${id}/individual_performance/`),
+
   // ── Role Constants ──
   ROLES: {
     SALES_EXECUTIVE: "sales_executive",
@@ -448,6 +462,7 @@ export const teamService = {
 // ══════════════════════════════════════════════
 //  INCENTIVES SERVICE
 //  Maps to: IncentiveViewSet → /api/incentives/
+// ... (rest of the code remains the same)
 //
 //  Incentive model fields:
 //    team_member (User FK), month (DateField — first day of month),
@@ -543,6 +558,66 @@ export const resourceService = {
 };
 
 // ══════════════════════════════════════════════
+//  CRM TOOLS SERVICE
+//  Maps to: CRMToolViewSet → /pipeline/crm-tools/
+// ══════════════════════════════════════════════
+
+export const crmToolService = {
+  /**
+   * Get all CRM tools.
+   * GET /pipeline/crm-tools/
+   * @param {object} params - e.g. { status: 'ACTIVE' }
+   */
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/pipeline/crm-tools/${query ? `?${query}` : ""}`);
+  },
+
+  /**
+   * Get a single CRM tool.
+   * GET /pipeline/crm-tools/:id/
+   */
+  getById: (id) => request(`/pipeline/crm-tools/${id}/`),
+
+  /**
+   * Create a new CRM tool.
+   * POST /pipeline/crm-tools/
+   */
+  create: (data) => request("/pipeline/crm-tools/", "POST", data),
+
+  /**
+   * Update a CRM tool.
+   * PUT /pipeline/crm-tools/:id/
+   */
+  update: (id, data) => request(`/pipeline/crm-tools/${id}/`, "PUT", data),
+
+  /**
+   * Partially update a CRM tool.
+   * PATCH /pipeline/crm-tools/:id/
+   */
+  patch: (id, fields) => request(`/pipeline/crm-tools/${id}/`, "PATCH", fields),
+
+  /**
+   * Delete a CRM tool.
+   * DELETE /pipeline/crm-tools/:id/
+   */
+  delete: (id) => request(`/pipeline/crm-tools/${id}/`, "DELETE"),
+
+  /**
+   * Trigger sync for a CRM tool.
+   * POST /pipeline/crm-tools/:id/sync_now/
+   */
+  sync: (id) => request(`/pipeline/crm-tools/${id}/sync_now/`, "POST"),
+
+  // ── Status Constants ──
+  STATUS: {
+    ACTIVE: "ACTIVE",
+    PASSIVE: "PASSIVE",
+    ON_DEMAND: "ON_DEMAND",
+  },
+};
+
+// ══════════════════════════════════════════════
 //  REPORTS SERVICE
 //  Maps to: ReportViewSet → /api/reports/
 // ══════════════════════════════════════════════
@@ -557,6 +632,92 @@ export const reportService = {
   update: (id, data) => request(`/api/reports/${id}/`, "PUT", data),
   patch: (id, fields) => request(`/api/reports/${id}/`, "PATCH", fields),
   delete: (id) => request(`/api/reports/${id}/`, "DELETE"),
+};
+
+// ══════════════════════════════════════════════
+//  DASHBOARD METRICS SERVICE
+//  Maps to: DashboardMetricViewSet → /api/reports/metrics/
+// ══════════════════════════════════════════════
+
+export const metricsService = {
+  /**
+   * Get all dashboard metrics.
+   * GET /api/reports/metrics/
+   * @param {object} params - e.g. { category: 'overview', is_active: true }
+   */
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/api/reports/metrics/${query ? `?${query}` : ""}`);
+  },
+
+  /**
+   * Get metrics grouped by category.
+   * GET /api/reports/metrics/by_category/
+   * @param {string} category - optional category filter
+   */
+  getByCategory: (category = null) => {
+    const query = category ? `?category=${category}` : "";
+    return request(`/api/reports/metrics/by_category/${query}`);
+  },
+
+  /**
+   * Get a single metric by ID.
+   * GET /api/reports/metrics/:id/
+   */
+  getById: (id) => request(`/api/reports/metrics/${id}/`),
+
+  /**
+   * Create a new dashboard metric.
+   * POST /api/reports/metrics/
+   * @param {object} data - { name, value, unit, category, previous_value?, change_percentage? }
+   */
+  create: (data) => request("/api/reports/metrics/", "POST", data),
+
+  /**
+   * Update all fields of a metric.
+   * PUT /api/reports/metrics/:id/
+   */
+  update: (id, data) => request(`/api/reports/metrics/${id}/`, "PUT", data),
+
+  /**
+   * Partially update a metric.
+   * PATCH /api/reports/metrics/:id/
+   */
+  patch: (id, fields) => request(`/api/reports/metrics/${id}/`, "PATCH", fields),
+
+  /**
+   * Delete a metric.
+   * DELETE /api/reports/metrics/:id/
+   */
+  delete: (id) => request(`/api/reports/metrics/${id}/`, "DELETE"),
+
+  /**
+   * Bulk update multiple metrics.
+   * POST /api/reports/metrics/bulk_update/
+   * @param {array} metrics - array of { id, value?, change_percentage?, ... }
+   */
+  bulkUpdate: (metrics) => request("/api/reports/metrics/bulk_update/", "POST", { metrics }),
+
+  // ── Metric Category Constants ──
+  CATEGORIES: {
+    OVERVIEW: "overview",
+    TEAM: "team",
+    CONVERSION: "conversion",
+    FINANCIAL: "financial",
+    PIPELINE: "pipeline",
+    PRODUCTIVITY: "productivity",
+  },
+
+  // ── Common Units ──
+  UNITS: {
+    COUNT: "count",
+    PERCENTAGE: "%",
+    RUPEES: "₹",
+    DOLLARS: "$",
+    HOURS: "hours",
+    DAYS: "days",
+    MINUTES: "minutes",
+  },
 };
 
 // ══════════════════════════════════════════════

@@ -16,7 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 
-import { leadService } from "../services/home";
+import { leadService, crmToolService } from "../services/home";
 import { useAuth } from "../context/AuthContext";
 
 // --- Static Definitions (Can be moved or fetched later) ---
@@ -27,37 +27,8 @@ const quickFilterLabels = {
   highValue: "High Value",
 };
 
-// FIX: I've restored the original data here so the CRM sidebar isn't empty.
-// You can replace this with a dynamic fetch later.
-const crmIntegrations = [
-  {
-    name: "FreshSales CRM",
-    status: "Synced every 15 min",
-    badge: "Active",
-    color: "text-brand-emerald",
-    type: "auto",
-    lastSync: "2024-01-15 14:30:00",
-    description: "Automatic synchronization enabled",
-  },
-  {
-    name: "LeadSquared",
-    status: "Manual push available",
-    badge: "On Demand",
-    color: "text-brand-blue",
-    type: "manual",
-    lastSync: "2024-01-15 12:15:00",
-    description: "Click to sync manually",
-  },
-  {
-    name: "HubSpot Activities",
-    status: "Reminders only",
-    badge: "Passive",
-    color: "text-brand-slate",
-    type: "passive",
-    lastSync: "2024-01-14 18:45:00",
-    description: "Activity reminders only",
-  },
-];
+// CRM integrations are now fetched from backend via useCRMIntegrations hook
+// Any CRM tools added in Django admin will automatically appear here
 
 const columnStyles = {
   New: "bg-slate-100 border-brand-blue/30",
@@ -88,6 +59,23 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
   const [error, setError] = useState(null);
   const [crmSyncStatus, setCrmSyncStatus] = useState({});
   const [showCrmDetails, setShowCrmDetails] = useState(null);
+
+  // Fetch CRM integrations from backend
+  // const { integrations: crmIntegrations, loading: crmLoading, error: crmError, refetch: refetchCRM } = useCRMIntegrations();
+  
+  const [crmIntegrations, setCrmIntegrations] = useState([]);
+  
+  // Map backend CRMTool model → display shape for UI
+  const mapTool = (t) => ({
+    id: t.id,
+    name: t.name,
+    status: t.sync_frequency || (t.status === 'ACTIVE' ? 'Synced automatically' : t.status === 'ON_DEMAND' ? 'Manual push available' : 'Passive mode'),
+    badge: t.status === 'ACTIVE' ? 'Active' : t.status === 'ON_DEMAND' ? 'On Demand' : 'Passive',
+    color: t.status === 'ACTIVE' ? 'text-brand-emerald' : t.status === 'ON_DEMAND' ? 'text-brand-blue' : 'text-brand-slate',
+    type: t.status === 'ACTIVE' ? 'auto' : t.status === 'ON_DEMAND' ? 'manual' : 'passive',
+    lastSync: t.last_synced_at ? new Date(t.last_synced_at).toLocaleString('en-IN') : 'Never synced',
+    description: t.description || 'CRM integration tool',
+  });
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -128,6 +116,24 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
     };
 
     fetchInitialData();
+  }, []);
+
+  // Fetch real CRM integrations from backend
+  useEffect(() => {
+    const fetchCrmTools = async () => {
+      try {
+        const data = await crmToolService.getAll();
+        const tools = Array.isArray(data) ? data : data.results || [];
+        if (tools.length > 0) {
+          setCrmIntegrations(tools.map(mapTool));
+        }
+        // If backend returns empty, crmIntegrations stays as [] — UI shows empty state
+      } catch (err) {
+        console.error("Failed to fetch CRM tools:", err);
+        // Silently fallback — don't crash if CRM tools endpoint fails
+      }
+    };
+    fetchCrmTools();
   }, []);
 
   const filteredPipelineData = useMemo(() => {
@@ -222,13 +228,16 @@ export default function PipelinePage({ activeFilter, filterMeta }) {
   const handleCrmSync = async (integration) => {
     setCrmSyncStatus((prev) => ({ ...prev, [integration.name]: "syncing" }));
     try {
-      await syncCrmIntegration(integration.name);
+      await crmToolService.sync(integration.id);
+      // Refresh last sync time
+      const updated = await crmToolService.getById(integration.id);
+      setCrmIntegrations(prev => prev.map(i => i.id === integration.id ? mapTool(updated) : i));
       setCrmSyncStatus((prev) => ({ ...prev, [integration.name]: "success" }));
       showNotification(`${integration.name} synced successfully`, "success");
     } catch (err) {
       console.error("CRM sync failed:", err);
       setCrmSyncStatus((prev) => ({ ...prev, [integration.name]: "error" }));
-      showNotification(`${integration.name} sync failed`, "error");
+      showNotification(`${integration.name} sync failed: ${err.message || ''}`, "error");
     } finally {
       setTimeout(() => {
         setCrmSyncStatus((prev) => ({ ...prev, [integration.name]: null }));

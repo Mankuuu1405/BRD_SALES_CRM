@@ -273,6 +273,55 @@ const generateLeadDetails = (lead, stage) => {
   };
 };
 
+const SimpleMetricChart = ({ data, label, unit = "" }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-full w-full flex items-center justify-center text-slate-400 text-sm">
+        No trend data available for this period
+      </div>
+    );
+  }
+
+  const values = data.map(d => Number(d.value));
+  const maxValue = Math.max(...values, 1);
+  const chartHeight = 140;
+
+  return (
+    <div className="w-full h-full flex flex-col justify-end pt-8">
+      <div className="flex items-end justify-between h-[160px] px-2 border-b border-slate-100 pb-2">
+        {data.map((item, idx) => {
+          const barHeight = (Number(item.value) / maxValue) * chartHeight;
+          return (
+            <div key={idx} className="group relative flex flex-col items-center flex-1">
+              {/* Tooltip */}
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-10">
+                <div className="bg-brand-navy text-white text-[10px] py-1 px-2 rounded-lg shadow-xl whitespace-nowrap">
+                  {item.value}{unit}
+                </div>
+                <div className="w-2 h-2 bg-brand-navy rotate-45 mx-auto -mt-1"></div>
+              </div>
+              
+              {/* Bar */}
+              <div 
+                className="w-8 sm:w-10 bg-gradient-to-t from-brand-blue/40 to-brand-blue rounded-t-lg transition-all duration-700 ease-out group-hover:from-brand-blue group-hover:to-brand-sky"
+                style={{ height: `${Math.max(barHeight, 4)}px` }}
+              ></div>
+              
+              {/* Label */}
+              <div className="absolute -bottom-7 w-full text-center">
+                <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+                  {item.label}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-6"></div>
+    </div>
+  );
+};
+
 export default function HomePage({ activeFilter, filterMeta }) {
   const { user } = useAuth();
   const [kycPreview, setKycPreview] = useState(null);
@@ -676,9 +725,27 @@ export default function HomePage({ activeFilter, filterMeta }) {
     }
   };
 
-  const handleViewReport = () => {
-    setMetricData(generateMetricData(activeStat.label));
-    setShowReportModal(true);
+  const handleViewReport = async () => {
+    setIsLoading(true);
+    try {
+      const metricKeyMap = {
+        "Active Leads": "active_leads",
+        "Lead → Application": "lead_to_application",
+        "Avg. Time to Apply": "avg_time_to_apply",
+        "Monthly Incentives": "monthly_incentives"
+      };
+      
+      const key = metricKeyMap[activeStat.label] || "active_leads";
+      const reportData = await dashboardService.getReport(key, activeFilter || 'all');
+      
+      setMetricData(reportData);
+      setShowReportModal(true);
+    } catch (err) {
+      console.error("Error fetching report:", err);
+      showToast("Failed to fetch report: " + (err.message || ""), "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNotifyTeam = () => {
@@ -2037,8 +2104,8 @@ export default function HomePage({ activeFilter, filterMeta }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Select Team Members
                 </label>
-                <div className="space-y-2">
-                  {teamMembers.map((member) => (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {backendTeam.map((member) => (
                     <label
                       key={member.id}
                       className="flex items-center gap-3 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50"
@@ -2115,10 +2182,19 @@ export default function HomePage({ activeFilter, filterMeta }) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-64 bg-slate-100 rounded-lg flex items-center justify-center">
-              <p className="text-sm text-slate-500">
-                Chart visualization for {activeStat.label}
-              </p>
+            <div className="h-64 mt-4 bg-slate-50/50 rounded-2xl border border-slate-100 p-4 transition-all duration-500 overflow-hidden">
+              {isLoading ? (
+                <div className="h-full w-full flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 border-3 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs text-slate-400">Fetching trend data...</p>
+                </div>
+              ) : (
+                <SimpleMetricChart 
+                  data={metricData?.weekly_data?.map(w => ({ label: w.week, value: w.count || w.value })) || []} 
+                  label={activeStat.label}
+                  unit={activeStat.label.includes("→") ? "%" : activeStat.label.includes("Time") ? "h" : ""}
+                />
+              )}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="bg-slate-50 rounded-lg p-3">

@@ -101,6 +101,8 @@ export default function SettingsPage() {
   const [newMember, setNewMember] = useState({ name: "", email: "", role: "Sales Executive" });
   const [newTerritory, setNewTerritory] = useState({ name: "", pincode: "", assignedTo: "" });
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showEditMember, setShowEditMember] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
   const [showAddTerritory, setShowAddTerritory] = useState(false);
   const [syncStatus, setSyncStatus] = useState({ lastSync: "", status: "" });
 
@@ -209,7 +211,13 @@ export default function SettingsPage() {
         })));
       }
       if (Array.isArray(teamRes)) setTeamMembers(teamRes);
-      if (Array.isArray(integRes)) setIntegrations(integRes);
+      if (Array.isArray(integRes)) {
+        setIntegrations(integRes.map(i => ({
+          ...i,
+          type: i.integration_type || "Other",
+          lastSync: i.last_sync || "Never"
+        })));
+      }
 
       if (genRes.id) {
         setGeneralSettings({
@@ -319,6 +327,26 @@ export default function SettingsPage() {
       setShowAddMember(false);
       showToast("Team member added", "success");
     } catch (err) { showToast("Failed to add team member", "error"); }
+  };
+
+  const openEditModal = (member) => {
+    setEditingMember({ ...member });
+    setShowEditMember(true);
+  };
+
+  const handleUpdateTeamMember = async () => {
+    if (!editingMember.name) return showToast("Name is required", "error");
+    try {
+      const { settingsService } = await import("../services/settings.js");
+      const updated = await settingsService.updateTeamMember(editingMember.id, {
+        name: editingMember.name,
+        role: editingMember.role
+      });
+      setTeamMembers(prev => prev.map(m => m.id === updated.id ? updated : m));
+      setShowEditMember(false);
+      setEditingMember(null);
+      showToast("Team member updated", "success");
+    } catch (err) { showToast("Failed to update team member", "error"); }
   };
 
   const handleRemoveTeamMember = async (id) => {
@@ -1273,7 +1301,10 @@ export default function SettingsPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <button className="p-1 text-slate-400 hover:text-brand-blue transition-colors">
+                            <button
+                              onClick={() => openEditModal(member)}
+                              className="p-1 text-slate-400 hover:text-brand-blue transition-colors"
+                            >
                               <Edit className="h-4 w-4" />
                             </button>
                             <button
@@ -1365,6 +1396,88 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setShowAddMember(false)}
+                      className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Team Member Modal */}
+            {showEditMember && editingMember && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+                  <h3 className="text-lg font-semibold text-brand-navy mb-4">
+                    Edit Team Member
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingMember.name}
+                        onChange={(e) =>
+                          setEditingMember((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={editingMember.email}
+                        disabled
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 cursor-not-allowed text-slate-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Email cannot be changed</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Role
+                      </label>
+                      <select
+                        value={editingMember.role}
+                        onChange={(e) =>
+                          setEditingMember((prev) => ({
+                            ...prev,
+                            role: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-brand-blue"
+                      >
+                        <option>Sales Executive</option>
+                        <option>Relationship Manager</option>
+                        <option>Team Lead</option>
+                        <option>Regional Manager</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleUpdateTeamMember}
+                      className="flex-1 px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue/90 transition-colors"
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowEditMember(false);
+                        setEditingMember(null);
+                      }}
                       className="flex-1 px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
                     >
                       Cancel

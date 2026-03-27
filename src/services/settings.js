@@ -50,6 +50,10 @@ export const settingsService = {
         const response = await apiClient.post("/auth/team-members/", data);
         return response.data;
     },
+    updateTeamMember: async (id, data) => {
+        const response = await apiClient.patch(`/auth/team-members/${id}/`, data);
+        return response.data;
+    },
     deleteTeamMember: async (id) => {
         const response = await apiClient.delete(`/auth/team-members/${id}/`);
         return response.data;

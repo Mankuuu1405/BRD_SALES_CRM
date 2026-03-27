@@ -434,6 +434,28 @@ export const crmToolService = {
       last_synced_at: new Date().toISOString(),
     }),
 
+  /**
+   * Sync CRM integration - trigger sync for a specific CRM tool.
+   * This function is used by PipelinePage.jsx to handle CRM sync operations.
+   *
+   * @param {number} id - CRM tool ID
+   * @returns {Promise<object>} Updated CRM tool data
+   */
+  syncCrmIntegration: async (id) => {
+    try {
+      // First update the sync timestamp
+      await crmToolService.recordSync(id);
+      
+      // Then fetch updated tool data
+      const updatedTool = await crmToolService.getById(id);
+      
+      return updatedTool;
+    } catch (error) {
+      console.error("CRM sync failed:", error);
+      throw error;
+    }
+  },
+
   // ── DELETE ──────────────────────────────────
 
   /**
@@ -482,11 +504,16 @@ export const crmToolService = {
 };
 
 // ══════════════════════════════════════════════
-//  USAGE EXAMPLES (for reference)
+//  EXPORTS
 // ══════════════════════════════════════════════
 
-/*
+export { leadService, crmToolService, LEAD_STAGES, LOAN_TYPES, CRM_STATUS };
 
+// Individual export for syncCrmIntegration (used by PipelinePage.jsx)
+export const syncCrmIntegration = crmToolService.syncCrmIntegration;
+
+/*
+ 
 ── Create a new lead:
    await leadService.create({
      name: "Priya Patel",
